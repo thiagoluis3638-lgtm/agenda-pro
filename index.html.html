@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agenda Pro – CRUD de contatos</title>
+<style>
+  :root{--bg:#eef2f5;--card:#fff;--ink:#1b2a38;--muted:#5d6e7d;--line:#d3dce4;--accent:#0e7c86;--accent-ink:#fff;--danger:#b3372f;--star:#d99a00;--shadow:0 1px 2px rgba(20,40,60,.08)}
+  @media (prefers-color-scheme:dark){:root{--bg:#121a22;--card:#1b2631;--ink:#e6edf3;--muted:#9aabba;--line:#2c3b49;--accent:#3fb6c0;--accent-ink:#0b1a1d;--danger:#ef7d75;--star:#f0b429;--shadow:none}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5}
+  main{max-width:880px;margin:0 auto;padding:28px 16px 80px}
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+  h1{font-size:1.8rem;margin:0}
+  .sub{color:var(--muted);margin:2px 0 0}
+  button,select,input{font:inherit;color:var(--ink)}
+  button{cursor:pointer;border-radius:8px;padding:9px 16px;border:1px solid var(--line);background:var(--card)}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+  button.danger{color:var(--danger)}
+  button.icon{padding:6px 10px;font-size:.85rem}
+  :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  input,select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 12px;width:100%}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;box-shadow:var(--shadow)}
+  .stat b{display:block;font-size:1.5rem;line-height:1.2}
+  .stat span{color:var(--muted);font-size:.85rem}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .toolbar input{flex:1 1 220px}
+  .toolbar select{flex:0 0 auto;width:auto}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+  .chip{border-radius:999px;padding:5px 14px;font-size:.88rem}
+  .chip[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  .grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:start;box-shadow:var(--shadow)}
+  .avatar{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;font-size:1.05rem}
+  .info{min-width:0}
+  .info strong{display:block;overflow-wrap:anywhere}
+  .info a{display:block;color:var(--muted);font-size:.88rem;text-decoration:none;overflow-wrap:anywhere}
+  .info a:hover{color:var(--accent);text-decoration:underline}
+  .badge{display:inline-block;font-size:.75rem;border:1px solid var(--line);border-radius:6px;padding:0 8px;margin-top:6px;color:var(--muted)}
+  .side{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  .star{background:none;border:0;padding:2px 4px;font-size:1.25rem;line-height:1;color:var(--line)}
+  .star[aria-pressed=true]{color:var(--star)}
+  .empty{text-align:center;color:var(--muted);padding:40px 0}
+  dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);padding:0;width:min(440px,92vw)}
+  dialog::backdrop{background:rgba(10,20,30,.55)}
+  form{display:grid;gap:12px;padding:20px}
+  label{display:grid;gap:4px;font-size:.9rem;color:var(--muted)}
+  .error{color:var(--danger);font-size:.85rem;min-height:1.2em;margin:0}
+  .row{display:flex;gap:8px;justify-content:flex-end}
+  .tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:28px;justify-content:center}
+  #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;display:flex;gap:14px;align-items:center;z-index:10}
+  #toast button{background:none;border:0;color:var(--accent);padding:0;font-weight:700}
+  #toast[hidden]{display:none}
+  @media (prefers-reduced-motion:no-preference){.item{transition:border-color .15s}}
+  #auth{max-width:420px;margin:8vh auto;padding:0 16px}
+  #auth form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px;box-shadow:var(--shadow)}
+  #authForm[data-modo=entrar] .only-criar{display:none}
+  .note{color:var(--muted);font-size:.8rem;margin:0}
+  .user{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .user span{color:var(--muted)}
+</style>
+</head>
+<body>
+<section id="auth">
+  <form id="authForm" data-modo="entrar" novalidate>
+    <h1>Agenda Pro</h1>
+    <p class="sub">Entre ou crie uma conta para ter a sua própria agenda.</p>
+    <div class="chips" role="group" aria-label="Entrar ou criar conta">
+      <button type="button" class="chip" id="tabEntrar" aria-pressed="true">Entrar</button>
+      <button type="button" class="chip" id="tabCriar" aria-pressed="false">Criar conta</button>
+    </div>
+    <label class="only-criar">Nome<input id="aNome" maxlength="60" autocomplete="name"></label>
+    <label>E-mail<input id="aEmail" type="email" maxlength="80" autocomplete="email"></label>
+    <label>Senha<input id="aSenha" type="password" maxlength="64" autocomplete="current-password"></label>
+    <label class="only-criar">Confirmar senha<input id="aSenha2" type="password" maxlength="64" autocomplete="new-password"></label>
+    <p class="error" id="aErro" role="alert"></p>
+    <button type="submit" class="primary" id="aBtn">Entrar</button>
+    <p class="note">Projeto de demonstração: as contas ficam salvas só neste navegador, sem servidor. A senha é guardada com hash (PBKDF2).</p>
+  </form>
+</section>
+
+<main id="app" hidden>
+  <header>
+    <div>
+      <h1>Agenda Pro</h1>
+      <p class="sub">Crie, edite, apague, favorite e organize seus contatos por grupo.</p>
+    </div>
+    <div class="user">
+      <span id="ola"></span>
+      <button class="primary" id="novo">+ Novo contato</button>
+      <button id="sair">Sair</button>
+    </div>
+  </header>
+
+  <div class="stats" aria-live="polite">
+    <div class="stat"><b id="sTotal">0</b><span>Contatos</span></div>
+    <div class="stat"><b id="sFav">0</b><span>Favoritos</span></div>
+    <div class="stat"><b id="sGrupo">–</b><span>Maior grupo</span></div>
+  </div>
+
+  <div class="toolbar">
+    <input id="busca" type="search" placeholder="Buscar por nome, telefone ou e-mail  (atalho: /)" aria-label="Buscar contatos">
+    <select id="ordem" aria-label="Ordenar">
+      <option value="nome">Nome (A–Z)</option>
+      <option value="recente">Mais recentes</option>
+      <option value="grupo">Grupo</option>
+    </select>
+  </div>
+  <div class="chips" id="chips" role="group" aria-label="Filtrar por grupo"></div>
+
+  <ul class="grid" id="lista"></ul>
+  <div class="empty" id="vazio" hidden>
+    <p id="vazioTxt"></p>
+    <button id="exemplos" hidden>Carregar contatos de exemplo</button>
+  </div>
+
+  <div class="tools">
+    <button id="expJson">Exportar JSON</button>
+    <button id="expCsv">Exportar CSV</button>
+    <button id="impBtn">Importar JSON</button>
+    <input id="impFile" type="file" accept="application/json" hidden>
+  </div>
+</main>
+
+<dialog id="dlg">
+  <form id="form" method="dialog" novalidate>
+    <strong id="dlgTitulo">Novo contato</strong>
+    <label>Nome<input id="nome" maxlength="60" autocomplete="off"></label>
+    <label>Telefone<input id="telefone" type="tel" placeholder="(15) 99999-9999" maxlength="15"></label>
+    <label>E-mail<input id="email" type="email" maxlength="80" autocomplete="off"></label>
+    <label>Grupo
+      <select id="grupo"><option>Família</option><option>Amigos</option><option>Trabalho</option><option>Outros</option></select>
+    </label>
+    <p class="error" id="erro" role="alert"></p>
+    <div class="row">
+      <button type="button" id="cancelar">Cancelar</button>
+      <button type="submit" class="primary" id="salvar">Adicionar</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" role="status" hidden><span id="toastTxt"></span><button id="desfazer">Desfazer</button></div>
+
+<script>
+const BASE = "agenda-pro-contatos", USERS_KEY = "agenda-pro-usuarios", SESSAO_KEY = "agenda-pro-sessao";
+let CHAVE = null, usuario = null;
+const GRUPOS = ["Família", "Amigos", "Trabalho", "Outros"];
+const $ = (id) => document.getElementById(id);
+let contatos = [], filtro = "Todos", editandoId = null, ultimoApagado = null, toastTimer;
+
+function carregar(){ try { return JSON.parse(localStorage.getItem(CHAVE)) || []; } catch { return []; } }
+function persistir(){ try { localStorage.setItem(CHAVE, JSON.stringify(contatos)); } catch {} }
+
+/* ---------- READ ---------- */
+function visiveis(){
+  const q = $("busca").value.trim().toLowerCase();
+  const digitos = q.replace(/\D/g, "");
+  let lista = contatos.filter(c => {
+    const okFiltro = filtro === "Todos" || (filtro === "Favoritos" ? c.fav : c.grupo === filtro);
+    const okBusca = !q || c.nome.toLowerCase().includes(q) || c.email.toLowerCase().includes(q)
+      || (digitos && c.telefone.replace(/\D/g, "").includes(digitos));
+    return okFiltro && okBusca;
+  });
+  const o = $("ordem").value;
+  if (o === "nome") lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  if (o === "recente") lista.sort((a, b) => Number(b.id) - Number(a.id));
+  if (o === "grupo") lista.sort((a, b) => a.grupo.localeCompare(b.grupo, "pt-BR") || a.nome.localeCompare(b.nome, "pt-BR"));
+  return lista;
+}
+
+function cor(nome){ let h = 0; for (const ch of nome) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h} 45% 40%)`; }
+function iniciais(nome){ const p = nome.trim().split(/\s+/); return (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : "")).toUpperCase(); }
+
+function el(tag, props = {}, ...filhos){
+  const e = Object.assign(document.createElement(tag), props);
+  e.append(...filhos); return e;
+}
+
+function renderizar(){
+  // estatísticas
+  $("sTotal").textContent = contatos.length;
+  $("sFav").textContent = contatos.filter(c => c.fav).length;
+  const cont = {}; contatos.forEach(c => cont[c.grupo] = (cont[c.grupo] || 0) + 1);
+  const top = Object.entries(cont).sort((a, b) => b[1] - a[1])[0];
+  $("sGrupo").textContent = top ? top[0] : "–";
+
+  // filtros
+  const chips = $("chips"); chips.innerHTML = "";
+  ["Todos", "Favoritos", ...GRUPOS].forEach(g => {
+    const b = el("button", { className: "chip", textContent: g, type: "button" });
+    b.setAttribute("aria-pressed", g === filtro);
+    b.onclick = () => { filtro = g; renderizar(); };
+    chips.append(b);
+  });
+
+  // lista
+  const lista = visiveis(), ul = $("lista"); ul.innerHTML = "";
+  lista.forEach(c => {
+    const av = el("div", { className: "avatar", textContent: iniciais(c.nome) }); av.style.background = cor(c.nome);
+    const info = el("div", { className: "info" },
+      el("strong", { textContent: c.nome }),
+      el("a", { href: "tel:" + c.telefone.replace(/\D/g, ""), textContent: c.telefone }),
+      el("a", { href: "mailto:" + c.email, textContent: c.email }),
+      el("span", { className: "badge", textContent: c.grupo }));
+    const star = el("button", { className: "star", type: "button", textContent: "★", title: c.fav ? "Remover dos favoritos" : "Favoritar" });
+    star.setAttribute("aria-pressed", !!c.fav); star.setAttribute("aria-label", star.title);
+    star.onclick = () => { c.fav = !c.fav; persistir(); renderizar(); };
+    const ed = el("button", { className: "icon", type: "button", textContent: "Editar", onclick: () => abrir(c.id) });
+    const ap = el("button", { className: "icon danger", type: "button", textContent: "Apagar", onclick: () => apagar(c.id) });
+    ul.append(el("li", { className: "item" }, av, info, el("div", { className: "side" }, star, ed, ap)));
+  });
+
+  $("vazio").hidden = lista.length > 0;
+  $("exemplos").hidden = contatos.length > 0;
+  $("vazioTxt").textContent = contatos.length
+    ? "Nenhum contato encontrado com esses filtros."
+    : "Sua agenda está vazia. Adicione um contato ou carregue exemplos para testar.";
+}
+
+/* ---------- CREATE / UPDATE ---------- */
+function abrir(id = null){
+  editandoId = id;
+  const c = contatos.find(x => x.id === id);
+  $("form").reset(); $("erro").textContent = "";
+  $("nome").value = c?.nome || ""; $("telefone").value = c?.telefone || "";
+  $("email").value = c?.email || ""; $("grupo").value = c?.grupo || "Amigos";
+  $("dlgTitulo").textContent = c ? "Editar contato" : "Novo contato";
+  $("salvar").textContent = c ? "Salvar alterações" : "Adicionar";
+  $("dlg").showModal(); $("nome").focus();
+}
+
+function validar(d){
+  if (d.nome.length < 2) return "Digite um nome com pelo menos 2 letras.";
+  if (d.telefone.replace(/\D/g, "").length < 10) return "Digite um telefone com DDD.";
+  if (!/^\S+@\S+\.\S+$/.test(d.email)) return "Digite um e-mail válido, como nome@email.com.";
+  const dup = contatos.find(c => c.id !== editandoId && c.email.toLowerCase() === d.email.toLowerCase());
+  if (dup) return "Já existe um contato com esse e-mail: " + dup.nome + ".";
+  return "";
+}
+
+$("form").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const d = { nome: $("nome").value.trim(), telefone: $("telefone").value.trim(), email: $("email").value.trim(), grupo: $("grupo").value };
+  const erro = validar(d); $("erro").textContent = erro;
+  if (erro) return;
+  if (editandoId) contatos = contatos.map(c => c.id === editandoId ? { ...c, ...d } : c);
+  else contatos.push({ id: String(Date.now()), fav: false, ...d });
+  persistir(); $("dlg").close(); renderizar();
+});
+
+/* ---------- DELETE (com desfazer) ---------- */
+function apagar(id){
+  const i = contatos.findIndex(c => c.id === id);
+  if (i < 0) return;
+  ultimoApagado = { contato: contatos[i], i };
+  contatos.splice(i, 1); persistir(); renderizar();
+  $("toastTxt").textContent = ultimoApagado.contato.nome + " foi apagado.";
+  $("toast").hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => $("toast").hidden = true, 6000);
+}
+$("desfazer").onclick = () => {
+  if (!ultimoApagado) return;
+  contatos.splice(ultimoApagado.i, 0, ultimoApagado.contato);
+  ultimoApagado = null; $("toast").hidden = true; persistir(); renderizar();
+};
+
+/* ---------- Exportar / Importar ---------- */
+function baixar(nome, texto, tipo){
+  const a = el("a", { href: URL.createObjectURL(new Blob([texto], { type: tipo })), download: nome });
+  a.click(); URL.revokeObjectURL(a.href);
+}
+$("expJson").onclick = () => baixar("contatos.json", JSON.stringify(contatos, null, 2), "application/json");
+$("expCsv").onclick = () => {
+  const esc = (v) => '"' + String(v).replace(/"/g, '""') + '"';
+  const linhas = [["Nome", "Telefone", "E-mail", "Grupo", "Favorito"].join(",")]
+    .concat(contatos.map(c => [c.nome, c.telefone, c.email, c.grupo, c.fav ? "Sim" : "Não"].map(esc).join(",")));
+  baixar("contatos.csv", "\uFEFF" + linhas.join("\n"), "text/csv;charset=utf-8");
+};
+$("impBtn").onclick = () => $("impFile").click();
+$("impFile").onchange = async (ev) => {
+  const arq = ev.target.files[0]; if (!arq) return;
+  try {
+    const dados = JSON.parse(await arq.text());
+    if (!Array.isArray(dados)) throw 0;
+    let novos = 0;
+    dados.forEach(d => {
+      if (d && d.nome && d.email && !contatos.some(c => c.email.toLowerCase() === String(d.email).toLowerCase())) {
+        contatos.push({ id: String(Date.now() + novos), nome: String(d.nome), telefone: String(d.telefone || ""),
+          email: String(d.email), grupo: GRUPOS.includes(d.grupo) ? d.grupo : "Outros", fav: !!d.fav });
+        novos++;
+      }
+    });
+    persistir(); renderizar(); alert(novos + " contato(s) importado(s).");
+  } catch { alert("Arquivo inválido. Use um JSON exportado por esta agenda."); }
+  ev.target.value = "";
+};
+
+/* ---------- Extras ---------- */
+$("exemplos").onclick = () => {
+  const base = [
+    ["Ana Souza", "(15) 99811-2233", "ana.souza@email.com", "Família", true],
+    ["Bruno Lima", "(11) 98877-4455", "bruno.lima@email.com", "Amigos", false],
+    ["Carla Mendes", "(15) 99700-1122", "carla@empresa.com", "Trabalho", true],
+    ["Diego Rocha", "(19) 99123-4567", "diego.rocha@email.com", "Outros", false]];
+  base.forEach(([nome, telefone, email, grupo, fav], i) => contatos.push({ id: String(Date.now() + i), nome, telefone, email, grupo, fav }));
+  persistir(); renderizar();
+};
+$("novo").onclick = () => abrir();
+$("cancelar").onclick = () => $("dlg").close();
+$("busca").oninput = renderizar; $("ordem").onchange = renderizar;
+document.addEventListener("keydown", (e) => {
+  if (e.key === "/" && !["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) { e.preventDefault(); $("busca").focus(); }
+});
+$("telefone").addEventListener("input", (e) => {
+  let v = e.target.value.replace(/\D/g, "").slice(0, 11);
+  if (v.length > 6) v = v.replace(/^(\d{2})(\d{4,5})(\d{0,4}).*/, "($1) $2-$3");
+  else if (v.length > 2) v = v.replace(/^(\d{2})(\d*)/, "($1) $2");
+  e.target.value = v.replace(/-$/, "");
+});
+
+/* ---------- Cadastro e login ---------- */
+const lerUsers = () => { try { return JSON.parse(localStorage.getItem(USERS_KEY)) || {}; } catch { return {}; } };
+const gravarUsers = (u) => { try { localStorage.setItem(USERS_KEY, JSON.stringify(u)); return true; } catch { return false; } };
+const hex = (buf) => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+
+async function gerarHash(senha, saltHex){
+  const salt = Uint8Array.from(saltHex.match(/../g), h => parseInt(h, 16));
+  const chave = await crypto.subtle.importKey("raw", new TextEncoder().encode(senha), "PBKDF2", false, ["deriveBits"]);
+  return hex(await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" }, chave, 256));
+}
+
+function modo(m){
+  $("authForm").dataset.modo = m;
+  $("tabEntrar").setAttribute("aria-pressed", m === "entrar");
+  $("tabCriar").setAttribute("aria-pressed", m === "criar");
+  $("aBtn").textContent = m === "entrar" ? "Entrar" : "Criar conta";
+  $("aSenha").autocomplete = m === "entrar" ? "current-password" : "new-password";
+  $("aErro").textContent = "";
+}
+$("tabEntrar").onclick = () => modo("entrar");
+$("tabCriar").onclick = () => modo("criar");
+
+$("authForm").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const criar = $("authForm").dataset.modo === "criar";
+  const nome = $("aNome").value.trim(), email = $("aEmail").value.trim().toLowerCase(), senha = $("aSenha").value;
+  const erro = (t) => { $("aErro").textContent = t; };
+  if (!/^\S+@\S+\.\S+$/.test(email)) return erro("Digite um e-mail válido, como nome@email.com.");
+  if (!window.crypto?.subtle) return erro("Seu navegador não permite criptografia aqui. Abra o arquivo por https ou localhost.");
+  const users = lerUsers();
+
+  if (criar) {
+    if (nome.length < 2) return erro("Digite seu nome com pelo menos 2 letras.");
+    if (senha.length < 6) return erro("A senha precisa ter pelo menos 6 caracteres.");
+    if (senha !== $("aSenha2").value) return erro("As senhas não são iguais.");
+    if (users[email]) return erro("Já existe uma conta com esse e-mail. Use a aba Entrar.");
+    const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+    users[email] = { nome, salt, hash: await gerarHash(senha, salt) };
+    if (!gravarUsers(users)) return erro("Não foi possível salvar a conta neste navegador.");
+  } else {
+    const u = users[email];
+    if (!u || await gerarHash(senha, u.salt) !== u.hash) return erro("E-mail ou senha incorretos.");
+  }
+  entrarNoApp(email);
+});
+
+function entrarNoApp(email){
+  const u = lerUsers()[email];
+  if (!u) return sair();
+  usuario = email; CHAVE = BASE + ":" + email;
+  try { localStorage.setItem(SESSAO_KEY, email); } catch {}
+  contatos = carregar(); filtro = "Todos"; $("busca").value = "";
+  $("ola").textContent = "Olá, " + u.nome.split(" ")[0];
+  $("authForm").reset(); modo("entrar");
+  $("auth").hidden = true; $("app").hidden = false;
+  renderizar();
+}
+
+function sair(){
+  usuario = null; CHAVE = null; contatos = [];
+  try { localStorage.removeItem(SESSAO_KEY); } catch {}
+  $("app").hidden = true; $("auth").hidden = false;
+  $("aEmail").focus();
+}
+$("sair").onclick = sair;
+
+function iniciar(){
+  let sessao = null;
+  try { sessao = localStorage.getItem(SESSAO_KEY); } catch {}
+  if (sessao && lerUsers()[sessao]) entrarNoApp(sessao); else sair();
+}
+iniciar();
+</script>
+</body>
+</html>
